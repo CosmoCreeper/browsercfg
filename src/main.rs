@@ -311,7 +311,8 @@ fn run(option: &str) {
 }
 
 fn format_import_path(path: &str, is_source: bool, base_browser_path: &str) -> String {
-    let sanitized_path = secure::sanitize_str(path, true);
+    // Destination should not be sanitized for special use cases
+    let sanitized_path = secure::sanitize_str(path, is_source);
     let mut formatted_path = IMPORT_PATH_RE.replace(&sanitized_path, "").into_owned();
     
     // This function is highly repetitive. Likely a way to simplify it?
@@ -319,6 +320,8 @@ fn format_import_path(path: &str, is_source: bool, base_browser_path: &str) -> S
         if sanitized_path.starts_with("{remote}") {
             let abs_remote_path = fs::canonicalize(remote::REMOTE_PATH).expect("err: cannot get absolute path for remote path");
             formatted_path = format!("{}/{formatted_path}", abs_remote_path.to_string_lossy());
+        } else if path == "./" {
+            formatted_path = "./";
         }
     } else {
         if sanitized_path.starts_with("{browser}") {
