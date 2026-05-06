@@ -321,7 +321,7 @@ fn format_import_path(path: &str, is_source: bool, base_browser_path: &str) -> S
             let abs_remote_path = fs::canonicalize(remote::REMOTE_PATH).expect("err: cannot get absolute path for remote path");
             formatted_path = format!("{}/{formatted_path}", abs_remote_path.to_string_lossy());
         } else if path == "./" {
-            formatted_path = "./";
+            formatted_path = "./".to_string();
         }
     } else {
         if sanitized_path.starts_with("{browser}") {
