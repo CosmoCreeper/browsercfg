@@ -110,17 +110,20 @@ static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>
     },
 );
 
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> std::io::Result<()> {
+fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &Vec<&str>) -> std::io::Result<()> {
     fs::create_dir_all(&dst)?;
     
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let ty = entry.file_type()?;
         
-        if ty.is_dir() {
-            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        let file_name = entry.file_name();
+        if !ignore.contains(&file_name.to_str().unwrap_or("")) {
+            if ty.is_dir() { 
+                copy_dir_all(entry.path(), dst.as_ref().join(file_name), ignore)?;
+            } else {
+                fs::copy(entry.path(), dst.as_ref().join(file_name))?;
+            }
         }
     }
     
@@ -360,12 +363,18 @@ fn import(option: &str) {
 
     if let Some(import_config) = &config.get("import").unwrap().as_object() {
         remote::check_status("import".to_string(), &config);
-        // handle remote and import
+        
+        let mut ignore: Vec<&str> = config["ignore"]
+            .as_array()
+            .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+            .unwrap_or_else(|| vec![]);
+        ignore.extend([".browsercfg", ".git"]);
+
         for (source, dest) in import_config.iter() {
             let expanded_source = format_import_path(source, true, &base_browser_path);
             let dest_str = dest.as_str().expect("err: cannot represent destination path as &str");
             let expanded_dest = format_import_path(dest_str, false, &base_browser_path);
-            copy_dir_all(expanded_source, expanded_dest).expect("err: cannot copy");
+            copy_dir_all(expanded_source, expanded_dest, &ignore).expect("err: cannot copy");
         }
     }
 

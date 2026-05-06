@@ -1,6 +1,6 @@
 [package]
 name = "browsercfg"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "A tool intended to help managing Firefox-based AutoConfig projects"
 license = "GPL-3.0"
