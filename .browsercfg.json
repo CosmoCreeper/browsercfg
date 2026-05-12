@@ -13,9 +13,11 @@
         ]
     },
     "import": {
-        "{remote}/bootloader/program": "{browser}",
-        "{remote}/bootloader/profile/utils": "{profile}/chrome/utils",
-        "{remote}/sine/src": "{profile}/chrome/JS",
-        "{remote}/sine/locales": "{profile}/chrome/JS/locales"
+        "files": {
+            "{remote}/bootloader/program": "{browser}",
+            "{remote}/bootloader/profile/utils": "{profile}/chrome/utils",
+            "{remote}/sine/src": "{profile}/chrome/JS",
+            "{remote}/sine/locales": "{profile}/chrome/JS/locales"
+        }
     }
 }

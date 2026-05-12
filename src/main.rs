@@ -17,7 +17,7 @@ static IMPORT_PATH_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
     regex::Regex::new(r"^\{.+\}(/|$)").unwrap()
 });
 
-const CURR_VERSION: &str = "0.1.0";
+const CURR_VERSION: &str = env!("CARGO_PKG_VERSION");
 const BROWSER_CONFIG: &str = ".browsercfg/curr_browser";
 const BROWSERS_FOLDER: &str = ".browsercfg/browsers/";
 const CONFIG_FILE: &str = ".browsercfg.json";
@@ -370,7 +370,9 @@ fn import(option: &str) {
             .unwrap_or_else(|| vec![]);
         ignore.extend([".browsercfg", ".git"]);
 
-        for (source, dest) in import_config.iter() {
+        let import_files = import_config.get("files").expect("err: import declared, but missing necessary files field")
+            .as_object().expect("err: import field, files, is declared, but cannot be represented as an object");
+        for (source, dest) in import_files.iter() {
             let expanded_source = format_import_path(source, true, &base_browser_path);
             let dest_str = dest.as_str().expect("err: cannot represent destination path as &str");
             let expanded_dest = format_import_path(dest_str, false, &base_browser_path);
@@ -457,10 +459,15 @@ fn main() {
             "select" => {
                 select(option);
             },
+            "--version" => {
+                println!("Browsercfg is operational. Version: {CURR_VERSION} :)");
+            },
             _ => {
                 println!("Unknown command!");
                 help();
             }
         }
+    } else {
+        help();
     }
 }
