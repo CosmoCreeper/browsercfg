@@ -233,7 +233,7 @@ fn extract(path: &str, out_dir: String) -> Result<(), Box<dyn std::error::Error>
         }).unwrap();
     }
 
-    #[cfg(unix)]
+    #[cfg(target_os = "linux")]
     {
         fs::create_dir_all(&out_dir);
         let file = fs::File::open(path)?;
