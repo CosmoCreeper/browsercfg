@@ -1,7 +1,8 @@
 name: Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags: ["v*"]
 
 env:
   CARGO_TERM_COLOR: always
@@ -10,17 +11,24 @@ jobs:
   cargo:
     name: Publish to crates.io
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Configure rustup
-        run: rustup update stable && rustup default stable
+      - name: Authenticate with crates.io
+        uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
+        id: auth
 
-      - name: Publish
-        run: cargo publish
+      - name: Publish to crates.io
+        run: cargo publish --dry-run
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   build:
     strategy:
