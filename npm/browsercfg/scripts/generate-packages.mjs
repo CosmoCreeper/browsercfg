@@ -4,8 +4,7 @@ import { fileURLToPath } from "node:url";
 import { format } from "node:util";
 
 const CLI_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
-const PACKAGES_ROOT = resolve(CLI_ROOT, "..");
-const REPO_ROOT = resolve(PACKAGES_ROOT, "..");
+const REPO_ROOT = resolve(REPO_ROOT, "..");
 const MANIFEST_PATH = resolve(CLI_ROOT, "package.json");
 
 const rootManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf-8"));
@@ -22,74 +21,74 @@ if (version !== process.argv[2].slice(1) && process.argv[3] !== "-f") {
 rootManifest.version = version;
 rootManifest.optionalDependencies = {};
 
+const { license, repository, engines, homepage } = rootManifest;
+
 function getName(platform, arch, prefix = "browsercfg") {
-	return format(`${prefix}-${platform}`, arch);
+  return format(`${prefix}-${platform}`, arch);
 }
 
 function copyBinaryToNativePackage(platform, arch) {
-	const os = platform.split("-")[0];
-	const buildName = getName(platform, arch);
-	const packageRoot = resolve(PACKAGES_ROOT, buildName);
-	const packageName = `@chromejs/${buildName}`;
+  const os = platform.split("-")[0];
+  const buildName = getName(platform, arch);
+  const packageRoot = resolve(REPO_ROOT, buildName);
+  fs.mkdirSync(packageRoot);
+  const packageName = `@chromejs/${buildName}`;
 
-	// Update the package.json manifest
-	const { license, repository, engines, homepage } = rootManifest;
+  // Update the package.json manifest
+  rootManifest.optionalDependencies[packageName] = version;
 
-        rootManifest.optionalDependencies[packageName] = version;
+  const manifest = JSON.stringify(
+    {
+      name: packageName,
+      version,
+      license,
+      repository,
+      engines,
+      homepage,
+      os: [os],
+      cpu: [arch],
+      libc:
+        os === "linux"
+          ? packageName.endsWith("musl")
+		    ? ["musl"]
+		    : ["glibc"]
+		: undefined,
+    },
+    null,
+    2,
+  );
 
-        const manifest = JSON.stringify(
-		{
-			name: packageName,
-			version,
-			license,
-			repository,
-			engines,
-			homepage,
-			os: [os],
-			cpu: [arch],
-			libc:
-				os === "linux"
-					? packageName.endsWith("musl")
-						? ["musl"]
-						: ["glibc"]
-					: undefined,
-		},
-		null,
-		2,
-	);
+  const manifestPath = resolve(packageRoot, "package.json");
+  console.info(`Update manifest ${manifestPath}`);
+  fs.writeFileSync(manifestPath, manifest);
 
-	const manifestPath = resolve(packageRoot, "package.json");
-	console.info(`Update manifest ${manifestPath}`);
-	fs.writeFileSync(manifestPath, manifest);
+  // Copy the CLI binary
+  const ext = os === "win32" ? ".exe" : "";
+  const binarySource = resolve(
+    REPO_ROOT,
+    `${getName(platform, arch)}${ext}`,
+  );
+  const binaryTarget = resolve(packageRoot, `browsercfg${ext}`);
 
-	// Copy the CLI binary
-	const ext = os === "win32" ? ".exe" : "";
-	const binarySource = resolve(
-		REPO_ROOT,
-		`${getName(platform, arch)}${ext}`,
-	);
-	const binaryTarget = resolve(packageRoot, `browsercfg${ext}`);
+  if (!fs.existsSync(binarySource)) {
+    console.error(
+      `Source for binary for ${buildName} not found at: ${binarySource}`,
+    );
+    process.exit(1);
+  }
 
-	if (!fs.existsSync(binarySource)) {
-		console.error(
-			`Source for binary for ${buildName} not found at: ${binarySource}`,
-		);
-		process.exit(1);
-	}
-
-	console.info(`Copy binary ${binaryTarget}`);
-	fs.copyFileSync(binarySource, binaryTarget);
-	fs.chmodSync(binaryTarget, 0o755);
+  console.info(`Copy binary ${binaryTarget}`);
+  fs.copyFileSync(binarySource, binaryTarget);
+  fs.chmodSync(binaryTarget, 0o755);
 }
 
 const PLATFORMS = ["win32-%s", "darwin-%s", "linux-%s", "linux-%s-musl"];
 const ARCHITECTURES = ["x64", "arm64"];
 
 for (const platform of PLATFORMS) {
-	for (const arch of ARCHITECTURES) {
-		copyBinaryToNativePackage(platform, arch);
-	}
+  for (const arch of ARCHITECTURES) {
+    copyBinaryToNativePackage(platform, arch);
+  }
 }
 
 fs.writeFileSync(MANIFEST_PATH, JSON.stringify(rootManifest, null, 2), "utf-8");
-
