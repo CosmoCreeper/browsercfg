@@ -133,7 +133,8 @@ jobs:
 
       - name: Publish npm packages
         run: |
-          for package in npm/*/; do
+          npm publish ./npm/
+          for package in browsercfg-*/; do
             npm publish $package
           done
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { format } from "node:util";
 
 const CLI_ROOT = resolve(fileURLToPath(import.meta.url), "../..");
-const REPO_ROOT = resolve(REPO_ROOT, "..");
+const REPO_ROOT = resolve(CLI_ROOT, "..");
 const MANIFEST_PATH = resolve(CLI_ROOT, "package.json");
 
 const rootManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf-8"));
@@ -20,6 +20,8 @@ if (version !== process.argv[2].slice(1) && process.argv[3] !== "-f") {
 
 rootManifest.version = version;
 rootManifest.optionalDependencies = {};
+
+fs.copyFileSync(resolve(REPO_ROOT, "README.md"), resolve(CLI_ROOT, "README.md"));
 
 const { license, repository, engines, homepage } = rootManifest;
 
