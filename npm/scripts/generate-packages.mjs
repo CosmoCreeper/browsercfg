@@ -22,6 +22,7 @@ rootManifest.version = version;
 rootManifest.optionalDependencies = {};
 
 fs.copyFileSync(resolve(REPO_ROOT, "README.md"), resolve(CLI_ROOT, "README.md"));
+fs.copyFileSync(resolve(REPO_ROOT, "LICENSE"), resolve(CLI_ROOT, "LICENSE"));
 
 const { license, repository, engines, homepage } = rootManifest;
 
