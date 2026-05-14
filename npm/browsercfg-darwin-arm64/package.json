@@ -1,5 +1,5 @@
 {
-  "name": "@chromejs/browsercfg-win32-x64",
+  "name": "@chromejs/browsercfg-darwin-arm64",
   "version": "0.1.4",
   "license": "MIT",
   "repository": {
@@ -12,10 +12,10 @@
   },
   "homepage": "https://github.com/CosmoCreeper/browsercfg",
   "os": [
-    "win32"
+    "darwin"
   ],
   "cpu": [
-    "x64"
+    "arm64"
   ],
   "publishConfig": {
     "provenance": true

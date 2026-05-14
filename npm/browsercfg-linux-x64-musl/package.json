@@ -1,5 +1,5 @@
 {
-  "name": "@chromejs/browsercfg-win32-x64",
+  "name": "@chromejs/browsercfg-linux-x64-musl",
   "version": "0.1.4",
   "license": "MIT",
   "repository": {
@@ -12,10 +12,13 @@
   },
   "homepage": "https://github.com/CosmoCreeper/browsercfg",
   "os": [
-    "win32"
+    "linux"
   ],
   "cpu": [
     "x64"
+  ],
+  "libc": [
+    "musl"
   ],
   "publishConfig": {
     "provenance": true
