@@ -1,0 +1,46 @@
+{
+  "name": "@chromejs/browsercfg",
+  "version": "0.1.4",
+  "bin": {
+    "browsercfg": "bin/browsercfg"
+  },
+  "homepage": "https://github.com/CosmoCreeper/browsercfg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CosmoCreeper/browsercfg.git",
+    "directory": "npm/browsercfg"
+  },
+  "author": "CosmoCreeper",
+  "license": "MIT",
+  "bugs": "https://github.com/CosmoCreeper/browsercfg/issues",
+  "description": "Browsercfg is a tool allowing you to run isolated and controlled instances of Firefox-based browsers.",
+  "files": [
+    "bin/browsercfg",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "firefox",
+    "gecko",
+    "userchrome",
+    "userchromejs",
+    "autoconfig",
+    "browsers"
+  ],
+  "engines": {
+    "node": ">=14.21.3"
+  },
+  "publishConfig": {
+    "provenance": true
+  },
+  "optionalDependencies": {
+    "@chromejs/browsercfg-win32-x64": "0.1.4",
+    "@chromejs/browsercfg-win32-arm64": "0.1.4",
+    "@chromejs/browsercfg-darwin-x64": "0.1.4",
+    "@chromejs/browsercfg-darwin-arm64": "0.1.4",
+    "@chromejs/browsercfg-linux-x64": "0.1.4",
+    "@chromejs/browsercfg-linux-arm64": "0.1.4",
+    "@chromejs/browsercfg-linux-x64-musl": "0.1.4",
+    "@chromejs/browsercfg-linux-arm64-musl": "0.1.4"
+  }
+}

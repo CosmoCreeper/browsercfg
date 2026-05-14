@@ -110,19 +110,35 @@ static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>
     },
 );
 
-fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &Vec<&str>) -> std::io::Result<()> {
-    fs::create_dir_all(&dst)?;
-    
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        
-        let file_name = entry.file_name();
-        if !ignore.contains(&file_name.to_str().unwrap_or("")) {
-            if ty.is_dir() { 
-                copy_dir_all(entry.path(), dst.as_ref().join(file_name), ignore)?;
-            } else {
-                fs::copy(entry.path(), dst.as_ref().join(file_name))?;
+fn copy_all(src: impl AsRef<Path>, dst: impl AsRef<Path>, ignore: &Vec<&str>) -> std::io::Result<()> {
+    let src = src.as_ref();
+    let dst = dst.as_ref();
+
+    if src.is_file() {
+        let dst = if dst.is_dir() {
+            dst.join(src.file_name().ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "source has no filename")
+            })?)
+        } else {
+            dst.to_path_buf()
+        };
+
+        if let Some(parent) = dst.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::copy(src, &dst)?;
+    } else {
+        fs::create_dir_all(&dst)?;
+        for entry in fs::read_dir(src)? {
+            let entry = entry?;
+            let ty = entry.file_type()?;
+            let file_name = entry.file_name();
+            if !ignore.contains(&file_name.to_str().unwrap_or("")) {
+                if ty.is_dir() { 
+                    copy_all(entry.path(), dst.join(file_name), ignore)?;
+                } else {
+                    fs::copy(entry.path(), dst.join(file_name))?;
+                }
             }
         }
     }
@@ -279,6 +295,14 @@ fn get_browser(option: &str) -> (String, String) {
     (browser.to_string(), release_channel.to_string())
 }
 
+fn get_config() -> Option<serde_json::Value> {
+    let config_data = match fs::read_to_string(CONFIG_FILE) {
+        Ok(s) => s,
+        Err(_) => return None,
+    };
+    serde_json::from_str(&config_data).expect("err: incorrect json format found")
+}
+
 fn help() {
     println!("Help: browsercfg <action> <option?>");
     println!("  > help: Opens the current screen");
@@ -314,25 +338,24 @@ fn run(option: &str) {
 }
 
 fn format_import_path(path: &str, is_source: bool, base_browser_path: &str) -> String {
-    // Destination should not be sanitized for special use cases
-    let sanitized_path = secure::sanitize_str(path, is_source);
-    let mut formatted_path = IMPORT_PATH_RE.replace(&sanitized_path, "").into_owned();
+    secure::assert_safe(path);
+    let mut formatted_path = IMPORT_PATH_RE.replace(&path, "").into_owned();
     
     // This function is highly repetitive. Likely a way to simplify it?
     if is_source {
-        if sanitized_path.starts_with("{remote}") {
+        if path.starts_with("{remote}") {
             let abs_remote_path = fs::canonicalize(remote::REMOTE_PATH).expect("err: cannot get absolute path for remote path");
             formatted_path = format!("{}/{formatted_path}", abs_remote_path.to_string_lossy());
         } else if path == "./" {
             formatted_path = "./".to_string();
         }
     } else {
-        if sanitized_path.starts_with("{browser}") {
+        if path.starts_with("{browser}") {
             let abs_browser_path = fs::canonicalize(
                 format!("{base_browser_path}/browser")
             ).expect("err: cannot get absolute path for browser path");
             formatted_path = format!("{}/{formatted_path}", abs_browser_path.to_string_lossy());
-        } else if sanitized_path.starts_with("{profile}") {
+        } else if path.starts_with("{profile}") {
             let abs_profile_path = fs::canonicalize(
                 format!("{base_browser_path}/profile")
             ).expect("err: cannot get absolute path for profile path");
@@ -352,14 +375,7 @@ fn import(option: &str) {
     let (browser, release_channel) = get_browser(option);
     let base_browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
 
-    let config_data = match fs::read_to_string(CONFIG_FILE) {
-        Ok(s) => s,
-        Err(_) => {
-            eprintln!("err: config file must be declared for importing");
-            return;
-        }
-    };
-    let config: serde_json::Value = serde_json::from_str(&config_data).unwrap();
+    let config = get_config().expect("err: config file must be declared to import");
 
     if let Some(import_config) = &config.get("import").unwrap().as_object() {
         remote::check_status("import".to_string(), &config);
@@ -368,7 +384,14 @@ fn import(option: &str) {
             .as_array()
             .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
             .unwrap_or_else(|| vec![]);
-        ignore.extend([".browsercfg", ".git"]);
+        ignore.extend([".browsercfg", ".git", "node_modules"]);
+
+        let import_scripts = &import_config.get("scripts").and_then(|v| v.as_object());
+        if let Some(scripts) = import_scripts {
+            if let Some(pre) = scripts.get("init") {
+                secure::parse_script(pre, ".".to_string());
+            }
+        }
 
         let import_files = import_config.get("files").expect("err: import declared, but missing necessary files field")
             .as_object().expect("err: import field, files, is declared, but cannot be represented as an object");
@@ -376,11 +399,19 @@ fn import(option: &str) {
             let expanded_source = format_import_path(source, true, &base_browser_path);
             let dest_str = dest.as_str().expect("err: cannot represent destination path as &str");
             let expanded_dest = format_import_path(dest_str, false, &base_browser_path);
-            copy_dir_all(expanded_source, expanded_dest, &ignore).expect("err: cannot copy");
+            copy_all(expanded_source, expanded_dest, &ignore).expect("err: cannot copy");
         }
-    }
 
-    println!("\nSuccessfully imported the current project.");
+        if let Some(scripts) = import_scripts {
+            if let Some(post) = scripts.get("cleanup") {
+                secure::parse_script(post, ".".to_string());
+            }
+        } 
+
+        println!("\nSuccessfully imported the current project.");
+    } else {
+        println!("No import configuration to import.");
+    }
 }
 
 fn test(_option: &str) {

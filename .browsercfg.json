@@ -3,21 +3,32 @@
         "run_on": ["import"],
         "init": [
             ["git_clone", "https://github.com/sineorg/bootloader.git", "bootloader"],
-            ["git_clone", "https://github.com/CosmoCreeper/Sine.git", "sine"]
+            ["git_clone", "https://github.com/CosmoCreeper/Sine.git", "sine"],
+            ["cd", "sine"],
+            ["git_checkout", "-b", "cosine", "origin/cosine"]
         ],
         "update": [
             ["cd", "bootloader"],
             ["git_pull", "origin", "main"],
             ["cd", "sine"],
-            ["git_pull", "origin", "main"]
+            ["git_pull", "origin", "cosine"]
         ]
     },
     "import": {
+        "scripts": {
+            "init": [
+                ["py_exec", ".browsercfg/remote/sine/scripts/extract_update.py"]
+            ],
+            "cleanup": [
+                ["rm", ".browsercfg/remote/sine/engine.tmp.json"]
+            ]
+        },
         "files": {
             "{remote}/bootloader/program": "{browser}",
             "{remote}/bootloader/profile/utils": "{profile}/chrome/utils",
             "{remote}/sine/src": "{profile}/chrome/JS",
-            "{remote}/sine/locales": "{profile}/chrome/JS/locales"
+            "{remote}/sine/locales": "{profile}/chrome/JS/locales",
+            "{remote}/sine/engine.tmp.json": "{profile}/chrome/JS/engine.json"
         }
     }
 }

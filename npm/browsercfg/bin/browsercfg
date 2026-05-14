@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+const { platform, arch, env, version, release } = process;
+const { execSync } = require("child_process");
+
+function isMusl() {
+	let stderr;
+	try {
+		stderr = execSync("ldd --version", {
+			stdio: ['pipe', 'pipe', 'pipe']
+		});
+	} catch (err) {
+		stderr = err.stderr;
+	}
+	if (stderr.indexOf("musl") > -1) {
+		return true;
+	}
+	return false;
+}
+
+const PLATFORMS = {
+	win32: {
+		x64: "@chromejs/browsercfg-win32-x64/browsercfg.exe",
+		arm64: "@chromejs/browsercfg-win32-arm64/browsercfg.exe",
+	},
+	darwin: {
+		x64: "@chromejs/browsercfg-darwin-x64/browsercfg",
+		arm64: "@chromejs/browsercfg-darwin-arm64/browsercfg",
+	},
+	linux: {
+		x64: "@chromejs/browsercfg-linux-x64/browsercfg",
+		arm64: "@chromejs/browsercfg-linux-arm64/browsercfg",
+	},
+	"linux-musl": {
+		x64: "@chromejs/browsercfg-linux-x64-musl/browsercfg",
+		arm64: "@chromejs/browsercfg-linux-arm64-musl/browsercfg",
+	},
+};
+
+const binPath = env.BIOME_BINARY ||
+	(platform === "linux" && isMusl()
+		? PLATFORMS?.["linux-musl"]?.[arch]
+		: PLATFORMS?.[platform]?.[arch]
+	);
+
+if (binPath) {
+	const packageManager = detectPackageManager();
+	const result = require("child_process").spawnSync(
+		require.resolve(binPath),
+		process.argv.slice(2),
+		{
+			shell: false,
+			stdio: "inherit",
+			env: {
+				...env,
+				JS_RUNTIME_VERSION: version,
+				JS_RUNTIME_NAME: release.name,
+				...(packageManager != null
+					? { NODE_PACKAGE_MANAGER: packageManager }
+					: {}),
+			},
+		},
+	);
+
+	if (result.error) {
+		throw result.error;
+	}
+
+	process.exitCode = result.status;
+} else {
+	console.error(
+		"The Browsercfg CLI package does not yet support your platform."
+	);
+	process.exitCode = 1;
+}
+
+/**
+ * NPM, Yarn, and other package manager set the `npm_config_user_agent`. It has the following format:
+ *
+ * ```
+ * "npm/8.3.0 node/v16.13.2 win32 x64 workspaces/false
+ * ```
+ *
+ * @returns The package manager string (`npm/8.3.0`) or null if the user agent string isn't set.
+ */
+function detectPackageManager() {
+	const userAgent = env.npm_config_user_agent;
+
+	if (userAgent == null) {
+		return null;
+	}
+
+	return userAgent.split(" ")[0];
+}

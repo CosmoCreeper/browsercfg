@@ -1,9 +1,9 @@
 [package]
 name = "browsercfg"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
-description = "A tool intended to help managing Firefox-based AutoConfig projects"
-license = "GPL-3.0"
+description = "A tool allowing you to run isolated and controlled instances of Firefox-based browsers"
+license = "MIT"
 authors = ["CosmoCreeper <cos.om@tuta.io>"]
 repository = "https://github.com/CosmoCreeper/browsercfg"
 readme = "README.md"
