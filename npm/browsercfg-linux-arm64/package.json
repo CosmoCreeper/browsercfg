@@ -17,6 +17,9 @@
   "cpu": [
     "arm64"
   ],
+  "libc": [
+    "glibc"
+  ],
   "publishConfig": {
     "provenance": true
   }

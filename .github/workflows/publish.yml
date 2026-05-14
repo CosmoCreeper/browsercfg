@@ -41,6 +41,12 @@ jobs:
             target: aarch64-pc-windows-msvc
             code-target: win32-arm64
           - os: ubuntu-latest
+            target: x86_64-unknown-linux
+            code-target: linux-x64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux
+            code-target: linux-arm64
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             code-target: linux-x64-musl
           - os: ubuntu-24.04-arm
