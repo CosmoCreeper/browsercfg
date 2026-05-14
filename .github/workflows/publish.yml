@@ -133,7 +133,7 @@ jobs:
       - name: Publish npm packages
         run: |
           for package in npm/*/; do
-            npm publish $package --access public --tag latest
+            npm publish $package --access public --tag latest --provenance
           done
 
       - name: Create GitHub release
