@@ -10,7 +10,7 @@ This removes the constant tinkering and breaking of your browser, easily.
 
 Just run this:
 ```
-npm install --save-dev browsercfg
+npm install --save-dev @chromejs/browsercfg
 ```
 Now you can start using browsercfg like this:
 ```
