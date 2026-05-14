@@ -10,6 +10,18 @@ const MANIFEST_PATH = resolve(CLI_ROOT, "package.json");
 
 const rootManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf-8"));
 
+const version = fs.readFileSync(resolve(REPO_ROOT, "Cargo.toml"), "utf-8")
+  .match(/^\[package\][\s\S]*?^version\s*=\s*"([^"]+)"/m)?.[1];
+
+// process.argv[2] will be tag name, and process.argv[3] will be a force argument, if it exists.
+if (version !== process.argv[2].slice(1) && process.argv[3] !== "-f") {
+  console.error("Mismatching tag name and Cargo.toml version, you may specify -f to force the update.");
+  process.exit(1);
+}
+
+rootManifest.version = version;
+rootManifest.optionalDependencies = {};
+
 function getName(platform, arch, prefix = "browsercfg") {
 	return format(`${prefix}-${platform}`, arch);
 }
@@ -21,9 +33,11 @@ function copyBinaryToNativePackage(platform, arch) {
 	const packageName = `@chromejs/${buildName}`;
 
 	// Update the package.json manifest
-	const { version, license, repository, engines, homepage } = rootManifest;
+	const { license, repository, engines, homepage } = rootManifest;
 
-	const manifest = JSON.stringify(
+        rootManifest.optionalDependencies[packageName] = version;
+
+        const manifest = JSON.stringify(
 		{
 			name: packageName,
 			version,
@@ -76,4 +90,6 @@ for (const platform of PLATFORMS) {
 		copyBinaryToNativePackage(platform, arch);
 	}
 }
+
+fs.writeFileSync(MANIFEST_PATH, JSON.stringify(rootManifest, null, 2), "utf-8");
 

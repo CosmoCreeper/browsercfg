@@ -36,7 +36,7 @@ const PLATFORMS = {
 	},
 };
 
-const binPath = env.BIOME_BINARY ||
+const binPath = env.BROWSERCFG_BINARY ||
 	(platform === "linux" && isMusl()
 		? PLATFORMS?.["linux-musl"]?.[arch]
 		: PLATFORMS?.[platform]?.[arch]

@@ -1,6 +1,5 @@
 {
   "name": "@chromejs/browsercfg-darwin-x64",
-  "version": "0.1.4",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -16,8 +15,5 @@
   ],
   "cpu": [
     "x64"
-  ],
-  "publishConfig": {
-    "provenance": true
-  }
+  ]
 }
