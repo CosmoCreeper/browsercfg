@@ -235,7 +235,7 @@ fn extract(path: &str, out_dir: String) -> Result<(), Box<dyn std::error::Error>
 
     #[cfg(target_os = "linux")]
     {
-        fs::create_dir_all(&out_dir);
+        let _ = fs::create_dir_all(&out_dir);
         let file = fs::File::open(path)?;
         let xz = xz2::read::XzDecoder::new(file);
         let mut archive = tar::Archive::new(xz);
