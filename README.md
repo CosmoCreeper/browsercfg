@@ -96,7 +96,7 @@ This way I have learned some Rust and the project has much more of an opportunit
 
 ## Relevant links
 
-https://github.com/CosmoCreeper/browsercfg\
-https://crates.io/crates/browsercfg\
-https://npmjs.com/package/@chromejs/browsercfg\
+https://github.com/CosmoCreeper/browsercfg \
+https://crates.io/crates/browsercfg \
+https://npmjs.com/package/@chromejs/browsercfg
 
