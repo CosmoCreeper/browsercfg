@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 mod remote;
 mod secure;
+mod tests;
 
 #[cfg(windows)]
 const EXE_SUFFIX: &str = ".exe";
@@ -27,6 +28,10 @@ const DEFAULT_PREFS: &str = "
   user_pref(\"zen.welcome-screen.seen\", true);
   user_pref(\"browser.shell.checkDefaultBrowser\", false);
 ";
+
+const BOOTSTRAP_MJS: &str = include_str!("profile/bootstrap.sys.mjs");
+const CHROME_MANIFEST: &str = include_str!("profile/chrome.manifest");
+const CONFIG_JS: &str = include_str!("program/config.js");
 
 static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>> = LazyLock::new(
     || {
@@ -406,16 +411,67 @@ fn import(option: &str) {
             if let Some(post) = scripts.get("cleanup") {
                 secure::parse_script(post, ".".to_string());
             }
-        } 
+        }
 
-        println!("\nSuccessfully imported the current project.");
+        let chrome_dest = format!("{base_browser_path}/profile/chrome");
+        fs::create_dir_all(&chrome_dest).expect("err: failed to create chrome folder");
+        fs::write(format!("{chrome_dest}/bootstrap.sys.mjs"), BOOTSTRAP_MJS)
+    .expect("err: failed to write bootstrap.sys.mjs");
+        fs::write(format!("{chrome_dest}/chrome.manifest"), CHROME_MANIFEST)
+    .expect("err: failed to write chrome.manifest");
+
+        let config_js_dest = format!("{base_browser_path}/browser/config.js");
+        let mut existing = fs::read_to_string(&config_js_dest).unwrap_or_default();
+        if let Some(idx) = existing.find("// browsercfg:start") {
+            existing.truncate(idx);
+        }
+        fs::write(&config_js_dest, format!(
+            "{existing}\n// browsercfg:start\n{CONFIG_JS}\n// browsercfg:end\n"
+        )).expect("err: failed to write config.js");
+
+        println!("\nSuccessfully imported the current project.\n");
     } else {
-        println!("No import configuration to import.");
+        println!("No import configuration to import.\n");
     }
 }
 
-fn test(_option: &str) {
-    println!("Testing is not yet supported in this version. :(");
+fn test(option: &str) {
+    let config = get_config().expect("err: config file must be declared to test");
+    let test_config = match config.get("test") {
+        Some(t) => t.clone(),
+        None => {
+            println!("No test configuration found.");
+            return;
+        }
+    };
+
+    let (browser, release_channel) = get_browser(option);
+    let base_browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
+
+    if option != "--no-import" {
+        import(option);
+    }
+
+    let test_scripts = test_config.get("scripts");
+    if let Some(scripts) = test_scripts {
+        if let Some(init) = scripts.get("init") {
+            secure::parse_script(init, ".".to_string());
+        }
+    }
+
+    let _ = tests::test(
+        &format!("{base_browser_path}/profile"),
+        &format!("{base_browser_path}/browser/{browser}{EXE_SUFFIX}"),
+        &format!("{base_browser_path}/profile"),
+    );
+    // New line print
+    println!();
+
+    if let Some(scripts) = test_scripts {
+        if let Some(cleanup) = scripts.get("cleanup") {
+            secure::parse_script(cleanup, ".".to_string());
+        }
+    }
 }
 
 fn select(option: &str) -> String {
