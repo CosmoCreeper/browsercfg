@@ -78,6 +78,19 @@ static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>
                             ),
                         ]),
                     ),
+                    (
+                        "other",
+                        HashMap::from([
+                            (
+                                "linux",
+                                "https://download.mozilla.org/?product=firefox-*&os=linux64&lang=en-US",
+                            ),
+                            (
+                                "windows",
+                                "https://download.mozilla.org/?product=firefox-*&os=win64&lang=en-US",
+                            ),
+                        ]),
+                    ),
                 ]),
             ),
             (
@@ -106,6 +119,19 @@ static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>
                             (
                                 "windows",
                                 "https://github.com/zen-browser/desktop/releases/download/twilight-1/zen.installer.exe",
+                            ),
+                        ]),
+                    ),
+                    (
+                        "other",
+                        HashMap::from([
+                            (
+                                "linux",
+                                "https://github.com/zen-browser/desktop/releases/download/*/zen.linux-x86_64.tar.xz",
+                            ),
+                            (
+                                "windows",
+                                "https://github.com/zen-browser/desktop/releases/download/*/zen.installer.exe",
                             ),
                         ]),
                     ),
@@ -156,22 +182,20 @@ fn ensure_config_dir() -> std::io::Result<()> {
     fs::create_dir_all(BROWSERS_FOLDER)
 }
 
-fn prompt_browser(option: &str) -> String {
+fn prompt_browser(options: &Vec<&str>) -> String {
     let browser_keys = BROWSER_MAP.keys().copied().collect::<Vec<_>>();
 
-    let mut browser = "";
-    let mut release_channel = "";
-
-    if option.starts_with("--") && option != "--list" {
-        let (browser, release_channel) = option.trim_start_matches("--").split_once('_').expect("expected format: --browser_channel");
+    let (browser, release_channel) = if let Some(browser_name) = options.windows(2).find(|w| w[0] == "--browser").map(|w| w[1]) {
+        let (browser, release_channel) = browser_name.split_once('-').expect("expected format: --browser browser-channel");
         let release_channels = BROWSER_MAP[browser].keys().copied().collect::<Vec<_>>();
         if !browser_keys.contains(&browser) {
             panic!("err: unknown browser passed to prompt");
         } else if !release_channels.contains(&release_channel) {
             panic!("err: unknown release channel passed to prompt");
         }
+        (browser, release_channel.to_string())
     } else {
-        browser = inquire::Select::new(
+        let browser = inquire::Select::new(
             "Select a browser:",
             browser_keys,
         )
@@ -179,18 +203,31 @@ fn prompt_browser(option: &str) -> String {
         .unwrap();
 
         let release_channels = BROWSER_MAP[browser].keys().collect::<Vec<_>>();
-        release_channel = *release_channels.first().unwrap();
+        let mut release_channel = release_channels.first().copied().unwrap().to_string();
         if release_channels.len() > 1 {
             release_channel = inquire::Select::new("Select release channel:", release_channels)
                 .prompt()
-                .unwrap();
+                .unwrap()
+                .to_string();
         } else {
             println!(
                 "Only one valid release channel available, selected: {}",
                 release_channels[0]
             );
         }
-    }
+
+        if release_channel == "other" {
+            if let Some(version_tag) = options.windows(2).find(|w| w[0] == "--release").map(|w| w[1]) {                                                         release_channel = version_tag.to_string();
+            } else {
+                let version_tag = inquire::Text::new("Version to download (without the 'v' prefix):")
+                    .prompt()
+                    .unwrap();
+                release_channel = format!("v{}", version_tag);
+            }
+        }
+
+        (browser, release_channel)
+    };
 
     ensure_config_dir().expect("err: failed to define/verify config folder (.browsercfg)");
     let browser_string = format!("{} {}", browser, release_channel);
@@ -261,10 +298,16 @@ fn extract(path: &str, out_dir: String) -> Result<(), Box<dyn std::error::Error>
 
 fn download_browser(browser: String, release_channel: String) {
     println!("  Finding download url...");
-    let browser_url = BROWSER_MAP[&*browser][&*release_channel][&*get_os()];
+    let query_channel = if release_channel.starts_with('v') {
+        "other"
+    } else {
+        &release_channel
+    };
+    let version_tag = release_channel.strip_prefix('v').unwrap();
+    let browser_url = BROWSER_MAP[&*browser][&*query_channel][&*get_os()].replace('*', version_tag);
 
     println!("  Downloading browser...");
-    download_binary(browser_url)
+    download_binary(&browser_url)
         .expect("err: failed to download browser binary, invalid internet connection?");
 
     let browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
@@ -286,10 +329,10 @@ fn download_browser(browser: String, release_channel: String) {
     println!("  Successfully downloaded browser.");
 }
 
-fn get_browser(option: &str) -> (String, String) {
+fn get_browser(options: &Vec<&str>) -> (String, String) {
     let browser_str = match fs::read_to_string(BROWSER_CONFIG) {
         Ok(contents) => contents,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => select(option),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => select(options),
         Err(e) => {
             eprintln!("err: cannot parse browser config: {e}");
             std::process::exit(1);
@@ -312,21 +355,17 @@ fn help() {
     println!("Help: browsercfg <action> <option?>");
     println!("  > help: Opens the current screen");
     println!("  > import: Imports code into curr_browser config");
-    println!(
-        "    > --{{curr_browser}}: Optional way to specify a curr_browser to import to temporarily"
-    );
     println!("  > test: Runs tests on selected curr_browser");
-    println!(
-        "    > --{{curr_browser}}: Optional way to specify a curr_browser to test on temporarily"
-    );
     println!("  > select: Interactively select a curr_browser to test on");
     println!("    > --get: Return selected curr_browser");
     println!("    > --list: If specified, will list supported browsers");
-    println!("    > --{{curr_browser}}: Optional way to specify the curr_browser directly");
+    println!("    > --uninstall: Automatically say yes to uninstalling the previous browser");
+    println!("    > --download: Automatically say yes to downloading the browser");
+    println!("    > --browser {{curr_browser}}: Optional way to specify the curr_browser directly");
 }
 
-fn run(option: &str) {
-    let (browser, release_channel) = get_browser(option);
+fn run(options: Vec<&str>) {
+    let (browser, release_channel) = get_browser(&options);
     let browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
 
     let status = std::process::Command::new(format!(
@@ -376,8 +415,8 @@ fn format_import_path(path: &str, is_source: bool, base_browser_path: &str) -> S
     formatted_path
 }
 
-fn import(option: &str) {
-    let (browser, release_channel) = get_browser(option);
+fn import(options: Vec<&str>) {
+    let (browser, release_channel) = get_browser(&options);
     let base_browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
 
     let config = get_config().expect("err: config file must be declared to import");
@@ -416,9 +455,9 @@ fn import(option: &str) {
         let chrome_dest = format!("{base_browser_path}/profile/chrome");
         fs::create_dir_all(&chrome_dest).expect("err: failed to create chrome folder");
         fs::write(format!("{chrome_dest}/bootstrap.sys.mjs"), BOOTSTRAP_MJS)
-    .expect("err: failed to write bootstrap.sys.mjs");
+            .expect("err: failed to write bootstrap.sys.mjs");
         fs::write(format!("{chrome_dest}/chrome.manifest"), CHROME_MANIFEST)
-    .expect("err: failed to write chrome.manifest");
+            .expect("err: failed to write chrome.manifest");
 
         let config_js_dest = format!("{base_browser_path}/browser/config.js");
         let mut existing = fs::read_to_string(&config_js_dest).unwrap_or_default();
@@ -435,7 +474,7 @@ fn import(option: &str) {
     }
 }
 
-fn test(option: &str) {
+fn test(options: Vec<&str>) {
     let config = get_config().expect("err: config file must be declared to test");
     let test_config = match config.get("test") {
         Some(t) => t.clone(),
@@ -445,11 +484,11 @@ fn test(option: &str) {
         }
     };
 
-    let (browser, release_channel) = get_browser(option);
+    let (browser, release_channel) = get_browser(&options);
     let base_browser_path = format!("{BROWSERS_FOLDER}{browser}_{release_channel}");
 
-    if option != "--no-import" {
-        import(option);
+    if !options.contains(&"--no-import") {
+        import(options);
     }
 
     let test_scripts = test_config.get("scripts");
@@ -459,7 +498,7 @@ fn test(option: &str) {
         }
     }
 
-    let _ = tests::test(
+    let results = tests::test(
         &format!("{base_browser_path}/profile"),
         &format!("{base_browser_path}/browser/{browser}{EXE_SUFFIX}"),
         &format!("{base_browser_path}/profile"),
@@ -472,17 +511,21 @@ fn test(option: &str) {
             secure::parse_script(cleanup, ".".to_string());
         }
     }
+
+    if results.iter().any(|r| r.status == tests::TestStatus::Fail) {
+        std::process::exit(1);
+    }
 }
 
-fn select(option: &str) -> String {
+fn select(options: &Vec<&str>) -> String {
     let curr_browser_str =
         fs::read_to_string(BROWSER_CONFIG).unwrap_or_else(|_| "none".to_string());
     let (curr_browser, release_channel) = curr_browser_str.split_once(' ').unwrap_or(("", ""));
 
-    if option == "--get" {
+    if options.contains(&"--get") {
         println!("Current selected browser: {}", curr_browser_str);
         return "".to_string();
-    } else if option == "--list" {
+    } else if options.contains(&"--list") {
         println!("Supported browsers:");
         let browsers = BROWSER_MAP.keys().collect::<Vec<_>>();
         for browser in browsers {
@@ -499,24 +542,28 @@ fn select(option: &str) -> String {
         return "".to_string();
     }
 
-    let browser_str = prompt_browser(option);
+    let browser_str = prompt_browser(options);
 
     // In this case {curr_browser} represents the previous browser
     if curr_browser_str != "none" {
         let browser_folder = format!("{BROWSERS_FOLDER}{curr_browser}_{release_channel}");
-        if Path::new(&browser_folder).exists()
-            && inquire::Confirm::new("Uninstall previous browser? (y/N)")
-                .prompt()
-                .unwrap()
+        if Path::new(&browser_folder).exists() &&
+           (
+               options.contains(&"--uninstall") ||
+               inquire::Confirm::new("Uninstall previous browser? (y/N)")
+                   .prompt()
+                   .unwrap()
+           )
         {
             fs::remove_dir_all(browser_folder)
                 .expect("err: failed to remove browser folder recursively");
         }
     }
 
-    if inquire::Confirm::new("Download the browser now? (y/N)")
-        .prompt()
-        .unwrap()
+    if options.contains(&"--download") ||
+       inquire::Confirm::new("Download the browser now? (y/N)")
+          .prompt()
+          .unwrap()
     {
         let (browser, release_channel) = browser_str.split_once(' ').unwrap();
         download_browser(browser.to_string(), release_channel.to_string());
@@ -537,14 +584,14 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
-        let option = args.get(2).map(|s| s.as_str()).unwrap_or("");
+        let options: Vec<&str> = args[2..].iter().map(|s| s.as_str()).collect();
         match args.get(1).map(|s| s.as_str()).unwrap_or("") {
             "help" => help(),
-            "run" => run(option),
-            "import" => import(option),
-            "test" => test(option),
+            "run" => run(options),
+            "import" => import(options),
+            "test" => test(options),
             "select" => {
-                select(option);
+                select(&options);
             },
             "--version" => {
                 println!("Browsercfg is operational. Version: {CURR_VERSION} :)");

@@ -5,14 +5,13 @@ use std::io::{BufRead, BufReader, Write};
 const TEST_PORT_PREF: &str = "browsercfg.test.port";
 const TEST_RESULTS_PREF: &str = "browsercfg.test.active";
 
-#[derive(Debug)]
 pub struct TestResult {
     pub name: String,
     pub status: TestStatus,
     pub error: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(PartialEq)]
 pub enum TestStatus {
     Pass,
     Fail,

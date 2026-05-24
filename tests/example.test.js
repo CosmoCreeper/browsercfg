@@ -1,5 +1,3 @@
-// tests/prefs.test.js
-
 it("Services is available", () => {
     if (!Services) throw new Error("Services is not defined");
 });
