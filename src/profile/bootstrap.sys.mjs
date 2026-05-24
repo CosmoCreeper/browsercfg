@@ -3,9 +3,7 @@ if (Services.prefs.getBoolPref("browsercfg.test.active", false)) {
     const ws = new WebSocket(`ws://127.0.0.1:${port}`);
 
     ws.addEventListener("open", async () => {
-        // Discover and load test files from the profile
-        const testDir = Services.dirsvc.get("ProfD", Ci.nsIFile);
-        testDir.append("chrome");
+        const testDir = Services.dirsvc.get("UChrm", Ci.nsIFile);
         testDir.append("tests");
 
         const entries = testDir.directoryEntries;
@@ -13,13 +11,13 @@ if (Services.prefs.getBoolPref("browsercfg.test.active", false)) {
             const file = entries.getNext().QueryInterface(Ci.nsIFile);
             if (!file.leafName.endsWith(".test.js")) continue;
 
-            // Load the test file in privileged context
             const fileURI = Services.io.newFileURI(file).spec;
             const tests = [];
-            // Expose a minimal describe/it API for test files to register against
+
+            // Minimal it logic, implement more logic in the future
+            // DOM support with auto-loading into special DOMs should be implemented
             const it = (name, fn) => tests.push({ name, fn });
 
-            // Execute the test file
             Services.scriptloader.loadSubScript(fileURI, { it });
 
             for (const { name, fn } of tests) {
