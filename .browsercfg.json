@@ -28,7 +28,9 @@
             "{remote}/bootloader/profile/utils": "{profile}/chrome/utils",
             "{remote}/sine/src": "{profile}/chrome/JS",
             "{remote}/sine/locales": "{profile}/chrome/JS/locales",
-            "{remote}/sine/engine.tmp.json": "{profile}/chrome/JS/engine.json"
+            "{remote}/sine/engine.tmp.json": "{profile}/chrome/JS/engine.json",
+	    "tests": "{profile}/chrome/tests"
         }
-    }
+    },
+    "test": {}
 }
