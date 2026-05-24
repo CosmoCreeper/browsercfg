@@ -129,7 +129,7 @@ jobs:
           package-manager-cache: false
 
       - name: Generate npm packages
-        run: node npm/browsercfg/scripts/generate-packages.mjs ${{ github.ref_name }}
+        run: node npm/scripts/generate-packages.mjs ${{ github.ref_name }}
 
       - name: Publish npm packages
         run: |
