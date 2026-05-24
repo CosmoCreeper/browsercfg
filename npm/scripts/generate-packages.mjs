@@ -67,8 +67,9 @@ function copyBinaryToNativePackage(platform, arch) {
 
   // Copy the CLI binary
   const ext = os === "win32" ? ".exe" : "";
+  const DIST_ROOT = resolve(REPO_ROOT, "dist");
   const binarySource = resolve(
-    REPO_ROOT,
+    DIST_ROOT,
     `${getName(platform, arch)}${ext}`,
   );
   const binaryTarget = resolve(packageRoot, `browsercfg${ext}`);
