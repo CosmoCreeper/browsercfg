@@ -83,7 +83,7 @@ dependencies = [
 
 [[package]]
 name = "browsercfg"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "indexmap",
  "inquire",
