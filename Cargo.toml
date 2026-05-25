@@ -1,6 +1,6 @@
 [package]
 name = "browsercfg"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 description = "A tool allowing you to run isolated and controlled instances of Firefox-based browsers"
 license = "MIT"
