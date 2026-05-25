@@ -29,6 +29,15 @@ const DEFAULT_PREFS: &str = "
   user_pref(\"browser.shell.checkDefaultBrowser\", false);
 ";
 
+// policies.json to disable updates for the isolated browser
+const POLICIES: &str = "
+  {
+    \"policies\": {
+      \"DisableAppUpdate\": true
+    }
+  }
+";
+
 const BOOTSTRAP_MJS: &str = include_str!("profile/bootstrap.sys.mjs");
 const CHROME_MANIFEST: &str = include_str!("profile/chrome.manifest");
 const CONFIG_JS: &str = include_str!("program/config.js");
@@ -88,6 +97,37 @@ static BROWSER_MAP: LazyLock<IndexMap<&str, IndexMap<&str, HashMap<&str, &str>>>
                             (
                                 "windows",
                                 "https://download.mozilla.org/?product=firefox-*&os=win64&lang=en-US",
+                            ),
+                        ]),
+                    ),
+                ]),
+            ),
+            (
+                "floorp",
+                IndexMap::from([
+                    (
+                        "stable",
+                        HashMap::from([
+                            (
+                                "linux",
+                                "https://github.com/Floorp-Projects/Floorp/releases/latest/download/floorp-linux-x86_64.tar.xz",
+                            ),
+                            (
+                                "windows",
+                                "https://github.com/Floorp-Projects/Floorp/releases/latest/download/floorp-windows-x86_64.installer.exe",
+                            ),
+                        ]),
+                    ),
+                    (
+                        "other",
+                        HashMap::from([
+                            (
+                                "linux",
+                                "https://github.com/Floorp-Projects/Floorp/releases/download/v*/floorp-linux-x86_64.tar.xz",
+                            ),
+                            (
+                                "windows",
+                                "https://github.com/Floorp-Projects/Floorp/releases/download/v*/floorp-windows-x86_64.installer.exe",
                             ),
                         ]),
                     ),
@@ -257,9 +297,14 @@ fn extract(path: &str, out_dir: String) -> Result<(), Box<dyn std::error::Error>
     #[cfg(windows)]
     {
         let data = fs::read(path).unwrap();
-        // 131665 is the offset of the file, from which state everything is simply a 7z file
-        let payload = std::io::Cursor::new(&data[131665..]);
-        // Lie to 7z about the out_dir to prevent permissions issues when truely extracting
+
+        const SIG_7Z: &[u8] = &[0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C];
+        let offset = data
+            .windows(SIG_7Z.len())
+            .position(|w| w == SIG_7Z)
+            .expect("Could not find 7z signature in installer");
+
+        let payload = std::io::Cursor::new(&data[offset..]);
         sevenz_rust::decompress_with_extract_fn(payload, "", |entry, reader, _dest| {
             if let Some(relative) = entry.name().strip_prefix("core/") {
                 let dest = std::path::PathBuf::from(&out_dir).join(relative);
@@ -303,7 +348,7 @@ fn download_browser(browser: String, release_channel: String) {
     } else {
         &release_channel
     };
-    let version_tag = release_channel.strip_prefix('v').unwrap();
+    let version_tag = release_channel.strip_prefix('v').unwrap_or("");
     let browser_url = BROWSER_MAP[&*browser][&*query_channel][&*get_os()].replace('*', version_tag);
 
     println!("  Downloading browser...");
@@ -325,6 +370,8 @@ fn download_browser(browser: String, release_channel: String) {
     let profile_path = format!("{browser_path}/profile");
     let _ = fs::create_dir_all(&profile_path);
     let _ = fs::write(format!("{profile_path}/prefs.js"), DEFAULT_PREFS);
+    let _ = fs::create_dir_all(format!("{browser_path}/browser/distribution"));
+    let _ = fs::write(format!("{browser_path}/browser/distribution/policies.json"), POLICIES);
 
     println!("  Successfully downloaded browser.");
 }
