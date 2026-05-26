@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CosmoCreeper/browsercfg.git",
-    "directory": "npm/browsercfg"
+    "directory": "npm"
   },
   "author": "CosmoCreeper",
   "license": "MIT",
